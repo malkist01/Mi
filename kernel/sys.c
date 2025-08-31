@@ -1216,53 +1216,60 @@ DECLARE_RWSEM(uts_sem);
  */
 static int override_release(char __user *release, size_t len)
 {
-	int ret = 0;
+    int ret = 0;
 
-	if (current->personality & UNAME26) {
-		const char *rest = UTS_RELEASE;
-		char buf[65] = { 0 };
-		int ndots = 0;
-		unsigned v;
-		size_t copy;
+    if (current->personality & UNAME26) {
+        const char *rest = UTS_RELEASE;
+        char buf[65] = { 0 };
+        int ndots = 0;
+        unsigned v;
+        size_t copy;
 
-		while (*rest) {
-			if (*rest == '.' && ++ndots >= 3)
-				break;
-			if (!isdigit(*rest) && *rest != '.')
-				break;
-			rest++;
-		}
-		v = ((LINUX_VERSION_CODE >> 8) & 0xff) + 60;
-		copy = clamp_t(size_t, len, 1, sizeof(buf));
-		copy = scnprintf(buf, copy, "2.6.%u%s", v, rest);
-		ret = copy_to_user(release, buf, copy + 1);
-	}
-	return ret;
+        while (*rest) {
+            if (*rest == '.' && ++ndots >= 3)
+                break;
+            if (!isdigit(*rest) && *rest != '.')
+                break;
+            rest++;
+        }
+        v = ((LINUX_VERSION_CODE >> 8) & 0xff) + 60;
+        copy = clamp_t(size_t, len, 1, sizeof(buf));
+        copy = scnprintf(buf, copy, "2.6.%u%s", v, rest);
+        ret = copy_to_user(release, buf, copy + 1);
+    }
+    return ret;
 }
+
+#ifdef CONFIG_KSU_SUSFS_SPOOF_UNAME
+extern void susfs_spoof_uname(struct new_utsname* tmp);
+#endif
 
 SYSCALL_DEFINE1(newuname, struct new_utsname __user *, name)
 {
-	struct new_utsname tmp;
+    struct new_utsname tmp;
 
-	down_read(&uts_sem);
-	memcpy(&tmp, utsname(), sizeof(tmp));
-	if (!strncmp(current->comm, "bpfloader", 9) ||
-	    !strncmp(current->comm, "netbpfload", 10) ||
-	    !strncmp(current->comm, "netd", 4) ||
-	    !strncmp(current->comm, "uprobestats", 11)) {
-		strcpy(tmp.release, "5.10.199");
-		pr_debug("fake uname: %s/%d release=%s\n",
-			 current->comm, current->pid, tmp.release);
-	}
-	up_read(&uts_sem);
-	if (copy_to_user(name, &tmp, sizeof(tmp)))
-		return -EFAULT;
+    down_read(&uts_sem);
+    memcpy(&tmp, utsname(), sizeof(tmp));
+    if (!strncmp(current->comm, "bpfloader", 9) ||
+        !strncmp(current->comm, "netbpfload", 10) ||
+        !strncmp(current->comm, "netd", 4) ||
+        !strncmp(current->comm, "uprobestats", 11)) {
+        strcpy(tmp.release, "5.10.199");
+        pr_debug("fake uname: %s/%d release=%s\n",
+             current->comm, current->pid, tmp.release);
+    }
+#ifdef CONFIG_KSU_SUSFS_SPOOF_UNAME
+    susfs_spoof_uname(&tmp);
+#endif
+    up_read(&uts_sem);
+    if (copy_to_user(name, &tmp, sizeof(tmp)))
+        return -EFAULT;
 
-	if (override_release(name->release, sizeof(name->release)))
-		return -EFAULT;
-	if (override_architecture(name))
-		return -EFAULT;
-	return 0;
+    if (override_release(name->release, sizeof(name->release)))
+        return -EFAULT;
+    if (override_architecture(name))
+        return -EFAULT;
+    return 0;
 }
 
 #ifdef __ARCH_WANT_SYS_OLD_UNAME
