@@ -36,11 +36,11 @@ jobs:
             libncurses5-dev bzip2 gcc-aarch64-linux-gnu gcc-arm-linux-gnueabihf \
             gcc-arm-linux-gnueabi dos2unix kmod
 
-      - name: Setup ZYC Clang
+      - name: Setup WeebX Clang
         run: |
           mkdir -p clang-zyc
           cd clang-zyc
-            wget -q $(curl -k https://raw.githubusercontent.com/ZyCromerZ/Clang/main/Clang-main-link.txt) -O zyc-clang.tar.gz
+            wget -q $(curl -k https://raw.githubusercontent.com/XSans0/WeebX-Clang/main/link.txt) -O zyc-clang.tar.gz
             tar -xf zyc-clang.tar.gz
             rm -f zyc-clang.tar.gz
             
